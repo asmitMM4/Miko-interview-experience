@@ -272,12 +272,10 @@ The important engineering questions include:
 
 The assignment therefore becomes a practical exercise in **distributed systems, real-time communication, scalability, reliability, and system architecture**.
 
-Final Outcome
+### Final Verdict
 
-Interview Verdict: Selected ✅
+**Selected ✅**
 
-I successfully cleared the Miko interview process, including the coding rounds, project discussions, and the take-home system design assignment.
+**Offer Status:** Offer received — not accepted.
 
-Offer Status: Offer received — not accepted
-
-I decided not to proceed with the offer and therefore did not join Miko.
+I successfully cleared the Miko interview process, including the coding rounds, project discussions, and the take-home system design assignment. I decided not to proceed with the offer and therefore did not join Miko.
