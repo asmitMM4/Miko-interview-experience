@@ -1,12 +1,12 @@
 # Miko Interview Experience
 
-This repository documents my interview preparation and experience for a **Lead Software Engineer role at Miko**.
+This repository documents my interview experience for a **Lead Software Engineer role at Miko**, covering coding and problem solving, project and technical discussions, and a take-home system design assignment.
 
 The interview process covered three major areas:
 
 1. **Coding & Problem Solving**
 2. **Project & Technical Discussion**
-3. **Home Take-Home System Design / Architecture Assignment**
+3. **Take-Home System Design / Architecture Assignment**
 
 ---
 
@@ -25,9 +25,9 @@ Topics covered included:
 * Recursion
 * Dynamic Programming
 * Time and Space Complexity
-* Writing clean and maintainable code
+* Clean and maintainable code
 
-The focus was not only on arriving at the correct solution but also on explaining the approach, analyzing complexity, and discussing edge cases.
+The discussion focused not only on arriving at the correct solution, but also on explaining the approach, analyzing time and space complexity, identifying edge cases, and evaluating alternative solutions.
 
 ---
 
@@ -51,7 +51,7 @@ Discussion areas included:
 * Production debugging
 * Engineering trade-offs
 
-Typical discussion pattern:
+A typical discussion flow was:
 
 ```text
 Problem
@@ -73,11 +73,11 @@ Monitoring
 Trade-offs
 ```
 
-The discussion emphasized understanding **why a particular architectural decision was made**, rather than simply knowing which technology was used.
+The discussion emphasized the reasoning behind architectural decisions rather than simply identifying the technologies used.
 
 ---
 
-# 3. Home Take-Home Assignment
+# 3. Take-Home Assignment
 
 ## D1 — Real-Time Notifications
 
@@ -89,9 +89,9 @@ The primary use case is enabling a parent using the **Miko Parent App** to chang
 
 ### Objective
 
-The system should allow a language change initiated from the Parent App to reach the Miko3 device immediately and reliably.
+The system must propagate a language-change request from the Parent App to the target Miko3 device with low latency and reliable delivery.
 
-The initial requirements include:
+### Initial Requirements
 
 | Requirement                    |        Target |
 | ------------------------------ | ------------: |
@@ -117,7 +117,7 @@ Real-Time Notification Framework
         ↓
 Miko3 Device
         ↓
-Language updated
+Language Updated
         ↓
 Acknowledgement
         ↓
@@ -134,17 +134,17 @@ French
 
 from the Miko Parent App.
 
-The system should:
+The system must:
 
 1. Authenticate the parent.
-2. Verify that the parent owns/controls the target Miko3 device.
+2. Verify that the parent is authorized to control the target Miko3 device.
 3. Create a language-change command.
-4. Locate the device's active connection.
+4. Resolve the device's active connection.
 5. Deliver the command through the real-time channel.
-6. Miko3 applies the language change.
-7. Miko3 sends an acknowledgement.
-8. The backend records the result.
-9. The Parent App receives confirmation.
+6. Apply the language change on Miko3.
+7. Send an acknowledgement from Miko3.
+8. Record the command result.
+9. Return confirmation to the Parent App.
 
 ---
 
@@ -177,8 +177,8 @@ The system should:
                  ┌────────┴────────┐
                  ▼                 ▼
         ┌────────────────┐  ┌─────────────────┐
-        │ Device Registry│  │Connection       │
-        │                │  │Manager Cluster  │
+        │ Device Registry│  │ Connection      │
+        │                │  │ Manager Cluster │
         └────────────────┘  └────────┬────────┘
                                      │
                               Persistent
@@ -203,11 +203,13 @@ The system should:
 
 ## Important Design Decisions
 
-The design focuses on several distributed-system concepts:
+The architecture addresses the key distributed-system requirements of the assignment.
 
 ### Persistent Connections
 
-A persistent connection between Miko3 and the backend enables server-initiated communication without relying on polling.
+Miko3 maintains a persistent connection with the backend, enabling server-initiated communication without relying on polling.
+
+This provides a low-latency path for delivering commands to connected devices.
 
 ### Device Routing
 
@@ -217,11 +219,11 @@ The backend maintains the relationship:
 deviceId → connectionNode
 ```
 
-This allows a command to be routed directly to the connection-manager instance responsible for that device.
+This allows a command to be routed directly to the connection-manager instance responsible for the target device rather than broadcasting it across the entire cluster.
 
 ### Idempotency
 
-Commands have a unique `commandId`.
+Every command receives a unique `commandId`.
 
 ```json
 {
@@ -234,48 +236,149 @@ Commands have a unique `commandId`.
 }
 ```
 
-If the same command is delivered more than once, the Miko3 client can recognize the previously processed `commandId` and avoid applying the operation multiple times.
+If the same command is delivered more than once, the Miko3 client can identify the previously processed `commandId` and avoid applying the operation multiple times.
+
+The resulting delivery model is:
+
+```text
+At-Least-Once Delivery
+        +
+Idempotent Processing
+        ↓
+Reliable Application Semantics
+```
 
 ### Retry & Failure Handling
 
-The system supports retry mechanisms for:
+The system supports controlled retries for:
 
 * Network failures
 * Connection failures
 * Missing acknowledgements
 * Temporary service failures
 
+Retries should use configurable timeouts, exponential backoff, and jitter to prevent synchronized retry storms.
+
 ### Offline Devices
 
-If a device is offline, the requested state can be persisted and applied when the device reconnects.
+A Miko3 device may not always have an active connection.
 
-For state-changing operations such as language selection, retaining the **latest desired state** can prevent unnecessary replay of obsolete commands.
+When the device is offline, the requested state can be persisted and reconciled when the device reconnects.
+
+For state-oriented operations such as language selection, retaining the **latest desired state** prevents unnecessary replay of obsolete commands.
+
+For example:
+
+```text
+French
+  ↓
+German
+  ↓
+Spanish
+  ↓
+French
+```
+
+If the device was offline during all four updates, only the latest valid desired state needs to be applied.
 
 ---
 
-# 4. What I Learned
+# 4. Architecture Evaluation
 
-The take-home assignment was particularly useful for thinking about real-time systems beyond simply sending a notification.
+The take-home assignment evaluated the ability to design a production-grade real-time distributed system under explicit scalability, latency, reliability, and security constraints.
 
-The important engineering questions include:
+The architecture addresses:
 
-* How do we locate a specific connected device?
-* How do we scale persistent connections?
-* What happens when a connection-manager node fails?
-* How do we prevent duplicate command execution?
-* What happens when the device is offline?
-* How should retries work?
-* How do we maintain low latency?
-* How do we observe an end-to-end command?
-* How do we maintain security between parent, backend, and device?
-* How does the architecture evolve from 5,000 RPM to significantly higher traffic?
+* Persistent device connections
+* Real-time communication
+* Device-to-connection-node routing
+* Horizontal scalability of connection managers
+* Low-latency command delivery
+* At-least-once delivery
+* Idempotent command processing
+* Retry and failure recovery
+* Offline-device handling
+* Desired-state synchronization
+* Command expiry and stale-state prevention
+* Authentication and authorization
+* End-to-end observability
+* Distributed tracing
+* Capacity planning
+* Load testing
+* High availability
+* Fault isolation
 
-The assignment therefore becomes a practical exercise in **distributed systems, real-time communication, scalability, reliability, and system architecture**.
+## Core Architectural Model
 
-### Final Verdict
+```text
+Parent Application
+        │
+        │ HTTPS
+        ▼
+   API Gateway
+        │
+        ▼
+ Notification API
+        │
+        ▼
+ Command / Routing Layer
+        │
+        ├───────────────┐
+        ▼               ▼
+Device Registry    Connection Manager
+                        │
+                        │ Persistent Connection
+                        ▼
+                      Miko3
+                        │
+                        │ ACK
+                        ▼
+                 Acknowledgement
+```
+
+The architecture separates the **request-processing path** from the **persistent connection layer**, allowing API services and device connections to scale independently.
+
+Unique command IDs, idempotent consumers, retry policies, command expiry, and desired-state synchronization provide reliable behavior in the presence of network failures, duplicate delivery, device disconnections, and service failures.
+
+---
+
+# 5. Engineering Considerations
+
+The design addresses the core questions involved in operating a real-time device communication platform:
+
+* How is a specific connected device located?
+* How are persistent connections distributed across multiple nodes?
+* How does the system recover when a connection-manager node fails?
+* How are duplicate commands handled?
+* What happens when a device is offline?
+* How are retries controlled?
+* How is the low-latency path optimized?
+* How is an individual command traced end-to-end?
+* How are parent, backend, and device authorization boundaries enforced?
+* How does the architecture scale beyond the initial 5,000 RPM requirement?
+
+The assignment therefore spans **distributed systems, real-time communication, scalability, reliability, security, observability, and system architecture**.
+
+---
+
+# 6. Final Outcome
+
+### Interview Verdict
 
 **Selected ✅**
 
-**Offer Status:** Offer received — not accepted.
+### Offer Status
 
-I successfully cleared the Miko interview process, including the coding rounds, project discussions, and the take-home system design assignment. I decided not to proceed with the offer and therefore did not join Miko.
+**Offer received — not accepted**
+
+I successfully cleared the Miko interview process, including the coding rounds, project discussions, and the take-home system design assignment.
+
+The offer was subsequently **not accepted**, and I did not join Miko.
+
+---
+
+## Disclaimer
+
+This document describes the interview experience and a technical interpretation of the take-home system-design requirements.
+
+It does not reproduce any confidential interview material, proprietary Miko implementation details, internal architecture, or non-public information.
