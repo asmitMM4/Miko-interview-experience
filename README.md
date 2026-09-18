@@ -1,6 +1,6 @@
 # Miko Interview Experience
 
-This repository documents my interview preparation and experience for a **Software Engineering / Backend Engineering role at Miko**.
+This repository documents my interview preparation and experience for a **Lead Software Engineer role at Miko**.
 
 The interview process covered three major areas:
 
